@@ -55,6 +55,26 @@ Or install with Homebrew:
 brew install yogevkr/tap/draftsx
 ```
 
+## Releases
+
+Tag releases are automated with GitHub Actions.
+
+```bash
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+The release workflow:
+
+- verifies the git tag matches `pyproject.toml`
+- runs tests and builds `sdist` + wheel artifacts
+- publishes a GitHub release in `YogevKr/draftsx`
+- updates `YogevKr/homebrew-tap` with the new tarball URL + SHA256
+
+Required repo secret in `YogevKr/draftsx`:
+
+- `HOMEBREW_TAP_SSH_KEY`: private half of a write-enabled deploy key installed on `YogevKr/homebrew-tap`
+
 ## Usage
 
 ```bash

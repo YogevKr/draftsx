@@ -1,0 +1,112 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Verify tag matches package version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          PACKAGE_VERSION="$(python - <<'PY'
+          import re
+          from pathlib import Path
+
+          text = Path("pyproject.toml").read_text()
+          match = re.search(r'^version = "([^"]+)"$', text, re.MULTILINE)
+          if match is None:
+              raise SystemExit("Could not find project version in pyproject.toml")
+          print(match.group(1))
+          PY
+          )"
+
+          if [ "$VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "Tag version $VERSION does not match package version $PACKAGE_VERSION"
+            exit 1
+          fi
+
+      - name: Run tests
+        run: |
+          uv run python -m unittest discover -s tests -v
+          python -m compileall src tests
+
+      - name: Build artifacts
+        run: uv build
+
+      - name: Validate release automation secret
+        env:
+          HOMEBREW_TAP_SSH_KEY: ${{ secrets.HOMEBREW_TAP_SSH_KEY }}
+        run: |
+          if [ -z "$HOMEBREW_TAP_SSH_KEY" ]; then
+            echo "Missing HOMEBREW_TAP_SSH_KEY secret"
+            exit 1
+          fi
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" dist/*.tar.gz dist/*.whl --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" dist/*.tar.gz dist/*.whl --generate-notes
+          fi
+
+      - name: Compute source artifact checksum
+        id: artifact
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          SDIST="dist/draftsx-${VERSION}.tar.gz"
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum "$SDIST" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Update Homebrew tap
+        env:
+          HOMEBREW_TAP_SSH_KEY: ${{ secrets.HOMEBREW_TAP_SSH_KEY }}
+        run: |
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          ssh-keyscan github.com >> "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+          eval "$(ssh-agent -s)"
+          printf '%s\n' "$HOMEBREW_TAP_SSH_KEY" | tr -d '\r' | ssh-add -
+
+          TAP_DIR="$RUNNER_TEMP/homebrew-tap"
+          git clone "git@github.com:YogevKr/homebrew-tap.git" "$TAP_DIR"
+          python scripts/update_homebrew_formula.py \
+            --formula "$TAP_DIR/Formula/draftsx.rb" \
+            --version "${{ steps.artifact.outputs.version }}" \
+            --sha256 "${{ steps.artifact.outputs.sha256 }}"
+
+          git -C "$TAP_DIR" config user.name "github-actions[bot]"
+          git -C "$TAP_DIR" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git -C "$TAP_DIR" diff --quiet; then
+            echo "No tap changes to commit"
+            exit 0
+          fi
+
+          git -C "$TAP_DIR" add Formula/draftsx.rb
+          git -C "$TAP_DIR" commit -m "chore: release draftsx v${{ steps.artifact.outputs.version }}"
+          git -C "$TAP_DIR" push origin main
