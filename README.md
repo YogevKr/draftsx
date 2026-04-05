@@ -49,6 +49,12 @@ Or install as a tool:
 uv tool install .
 ```
 
+Or install with Homebrew:
+
+```bash
+brew install yogevkr/tap/draftsx
+```
+
 ## Usage
 
 ```bash

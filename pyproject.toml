@@ -6,6 +6,10 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
 
+[project.urls]
+Homepage = "https://github.com/YogevKr/draftsx"
+Repository = "https://github.com/YogevKr/draftsx"
+
 [project.scripts]
 draftsx = "draftsx.cli:main"
 
