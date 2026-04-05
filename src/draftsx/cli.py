@@ -160,6 +160,11 @@ def build_parser() -> argparse.ArgumentParser:
     append_parser.add_argument("--no-refresh", action="store_true", help="do not auto-refresh a stale cache from Drafts")
     append_parser.set_defaults(handler=cmd_append)
 
+    link_parser = subparsers.add_parser("link", help="print the drafts:// deep link for a draft")
+    link_parser.add_argument("draft_id", help="full draft UUID or a unique prefix")
+    link_parser.add_argument("--no-refresh", action="store_true", help="do not auto-refresh a stale cache from Drafts")
+    link_parser.set_defaults(handler=cmd_link)
+
     return parser
 
 
@@ -487,6 +492,14 @@ def cmd_append(args: argparse.Namespace, index: DraftIndex) -> int:
     print(f"updated {draft.id}")
     if args.open and draft.permalink:
         subprocess.run(["open", draft.permalink], check=True)
+    return 0
+
+
+def cmd_link(args: argparse.Namespace, index: DraftIndex) -> int:
+    draft = get_indexed_draft(index, args.draft_id, auto_refresh=not args.no_refresh)
+    if not draft.permalink:
+        raise DraftIndexError(f"draft {draft.id} does not have a permalink")
+    print(draft.permalink)
     return 0
 
 
