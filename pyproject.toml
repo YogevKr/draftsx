@@ -1,8 +1,9 @@
 [project]
 name = "draftsx"
-version = "0.1.0"
+version = "0.1.1"
 description = "CLI and local full-text index for Drafts.app"
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.12"
 dependencies = []
 
