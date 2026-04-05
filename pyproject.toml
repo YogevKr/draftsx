@@ -1,6 +1,6 @@
 [project]
 name = "draftsx"
-version = "0.1.1"
+version = "0.1.2"
 description = "CLI and local full-text index for Drafts.app"
 readme = "README.md"
 license = { file = "LICENSE" }

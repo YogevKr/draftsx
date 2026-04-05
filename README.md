@@ -60,8 +60,8 @@ brew install yogevkr/tap/draftsx
 Tag releases are automated with GitHub Actions.
 
 ```bash
-git tag v0.1.1
-git push origin v0.1.1
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 The release workflow:
